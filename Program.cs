@@ -133,12 +133,12 @@ bool computeDrilling(double amplitudeUsi, double angleUsi, double inertia, out L
 
     List<double> vRestBaloursXY = new List<double>() { amplitudeUsi * Math.Cos(angleUsi * degToRad), amplitudeUsi * Math.Sin(angleUsi * degToRad), amplitudeUsi };
 
-    List<List<double>> holesToDrillLeft = new List<List<double>>(); //row {angle, depth}
-    holesToDrillLeft.Add(new List<double> { leftFreeHoles[0][0], 0 });
+   List<double> holesToDrillLeft = new List<double>(); //row angle
+    holesToDrillLeft.Add(leftFreeHoles[0][0] );
     leftFreeHoles.RemoveAt(0);
 
-    List<List<double>> holesToDrillRight = new List<List<double>>(); //row {angle, depth}
-    holesToDrillRight.Add(new List<double> { rightFreeHoles[0][0], 0 });
+    List<double> holesToDrillRight = new List<double>(); //row {angle, depth}
+    holesToDrillRight.Add(rightFreeHoles[0][0]);
     rightFreeHoles.RemoveAt(0);
 
     bool addHoleOnLeft = true;
@@ -148,7 +148,7 @@ bool computeDrilling(double amplitudeUsi, double angleUsi, double inertia, out L
         {
             if (leftFreeHoles.Count != 0)
             {
-                holesToDrillLeft.Add(new List<double> { leftFreeHoles[0][0], 0 });
+                holesToDrillLeft.Add( leftFreeHoles[0][0]);
                 leftFreeHoles.RemoveAt(0);
             }
             else
@@ -158,7 +158,7 @@ bool computeDrilling(double amplitudeUsi, double angleUsi, double inertia, out L
         {
             if (rightFreeHoles.Count != 0)
             {
-                holesToDrillRight.Add(new List<double> { rightFreeHoles[0][0], 0 });
+                holesToDrillRight.Add( rightFreeHoles[0][0]);
                 rightFreeHoles.RemoveAt(0);
             }
             else
@@ -169,7 +169,7 @@ bool computeDrilling(double amplitudeUsi, double angleUsi, double inertia, out L
     return true;
 }
 
-bool updateHolesDepth(double amplitudeUsi, double angleUsi, List<List<double>> holesToDrillLeft, List<List<double>> holesToDrillRight, out List<List<double>> holesToDrillUpdated, out bool addHoleLeft)
+bool updateHolesDepth(double amplitudeUsi, double angleUsi,List<double> holesToDrillLeft, List<double> holesToDrillRight, out List<List<double>> holesToDrillUpdated, out bool addHoleLeft)
 {
     holesToDrillUpdated = new List<List<double>>();
     addHoleLeft = true;
@@ -184,9 +184,9 @@ bool updateHolesDepth(double amplitudeUsi, double angleUsi, List<List<double>> h
     {
         for (int i = 0; i < holesToDrillLeft.Count - 1; i++)
         {
-            usinageFullHolesX += maxMassPerHole * rayonCm * Math.Cos(holesToDrillLeft[i][0] * degToRad);
-            usinageFullHolesY += maxMassPerHole * rayonCm * Math.Sin(holesToDrillLeft[i][0] * degToRad);
-            holesToDrillUpdated.Add(new List<double> { holesToDrillLeft[i][0], maxHoleDepth });
+            usinageFullHolesX += maxMassPerHole * rayonCm * Math.Cos(holesToDrillLeft[i] * degToRad);
+            usinageFullHolesY += maxMassPerHole * rayonCm * Math.Sin(holesToDrillLeft[i] * degToRad);
+            holesToDrillUpdated.Add(new List<double> { holesToDrillLeft[i], maxHoleDepth });
         }
     }
 
@@ -194,9 +194,9 @@ bool updateHolesDepth(double amplitudeUsi, double angleUsi, List<List<double>> h
     {
         for (int i = 0; i < holesToDrillRight.Count - 1; i++)
         {
-            usinageFullHolesX += maxMassPerHole * rayonCm * Math.Cos(holesToDrillRight[i][0] * degToRad);
-            usinageFullHolesY += maxMassPerHole * rayonCm * Math.Sin(holesToDrillRight[i][0] * degToRad);
-            holesToDrillUpdated.Add(new List<double> { holesToDrillRight[i][0], maxHoleDepth });
+            usinageFullHolesX += maxMassPerHole * rayonCm * Math.Cos(holesToDrillRight[i] * degToRad);
+            usinageFullHolesY += maxMassPerHole * rayonCm * Math.Sin(holesToDrillRight[i] * degToRad);
+            holesToDrillUpdated.Add(new List<double> { holesToDrillRight[i], maxHoleDepth });
         }
     }
     usinageCibleX = usinageCibleX - usinageFullHolesX;
@@ -209,11 +209,11 @@ bool updateHolesDepth(double amplitudeUsi, double angleUsi, List<List<double>> h
     // b profondeur perçage gauche
     // a et b < maxHoleDepth pour ok
     double a = 0, b = 0;
-    double gaucheX = rayonCm * Math.Cos(holesToDrillLeft.Last()[0] * degToRad);
-    double gaucheY = rayonCm * Math.Sin(holesToDrillLeft.Last()[0] * degToRad);
+    double gaucheX = rayonCm * Math.Cos(holesToDrillLeft.Last() * degToRad);
+    double gaucheY = rayonCm * Math.Sin(holesToDrillLeft.Last() * degToRad);
 
-    double droitX = rayonCm * Math.Cos(holesToDrillRight.Last()[0] * degToRad);
-    double droitY = rayonCm * Math.Sin(holesToDrillRight.Last()[0] * degToRad);
+    double droitX = rayonCm * Math.Cos(holesToDrillRight.Last() * degToRad);
+    double droitY = rayonCm * Math.Sin(holesToDrillRight.Last() * degToRad);
 
     b = (usinageCibleY - (gaucheY / gaucheX) * usinageCibleX) / ((-gaucheY / gaucheX) * droitX + droitY);
     a = (usinageCibleX -( droitX * b)) / gaucheX;
@@ -223,8 +223,8 @@ bool updateHolesDepth(double amplitudeUsi, double angleUsi, List<List<double>> h
     { //convert mass to hole depth
         a = getHoleDepthFromMass(a);
         b = getHoleDepthFromMass(b);
-        holesToDrillUpdated.Add(new List<double> { holesToDrillLeft.Last()[0], a });
-        holesToDrillUpdated.Add(new List<double> { holesToDrillRight.Last()[0], b });
+        holesToDrillUpdated.Add(new List<double> { holesToDrillLeft.Last(), a });
+        holesToDrillUpdated.Add(new List<double> { holesToDrillRight.Last(), b });
         return true;
     }
     else
@@ -297,12 +297,15 @@ void drawUsinage(double angleBalourd, List<List<double>> consigneUsinage, List<d
     bmp.Save("Balancier.png", ImageFormat.Png);
 }
 double amplitudeUsinageBrut = 0, angleUsinageBrut = 0;
+
 getUsinageBrutAmplitude(balourd, angleBalourd, balourdCible, angleCible, out amplitudeUsinageBrut, out angleUsinageBrut);
 
 double amplitudeUsinageReel = 0, angleUsinageReel = 0;
+
 getCorrectedUsinage(amplitudeUsinageBrut, angleUsinageBrut, out amplitudeUsinageReel, out angleUsinageReel);
 
 DrillConsigne.Clear();
+
 if (computeDrilling(amplitudeUsinageReel, angleUsinageReel, 0, out DrillConsigne))
     drawUsinage(angleBalourd, DrillConsigne, freeHoles);
 else
