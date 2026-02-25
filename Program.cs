@@ -13,6 +13,8 @@ List<double> patternHoles = new List<double> { 0, 5, 10, 15, 20, 25, 30, 35, 40,
     200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295,
     300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355, };
 
+//patternHoles = new List<double> { 0, 5, 10, 20, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 90, 95, 100, 105, 110, 120, 125, 130, 135, 140, 150, 155, 160, 165, 170, 175, 195, 200, 215, 225, 230, 235, 240, 245, 250, 255, 260, 265, 270, 275, 280, 290, 300, 305, 315, 320, 325, 330, 335, 345, 350 };
+
 List<double> freeHoles = new List<double>();
 
 List<List<double>> DrillConsigne = new List<List<double>>();
@@ -35,12 +37,12 @@ for (int i = 0; i < 1000; i++)
 }
 #endregion
 
-double balourd = 50;
-double angleBalourd = 180;
+double balourd = 20;
+double angleBalourd = 0;
 
 double balourdCible = 0;
 double angleCible = 0;
-double inertiaToRemove = 0;
+double inertiaToRemove = 10;
 
 double maxHoleDepth = 200;//in mu
 double maxAngleSpan = 120, halfmaxAngleSpan = maxAngleSpan / 2;
@@ -109,14 +111,14 @@ double GetInertiaRemoved(List<List<double>> holesToDrill)
     double rayonCm = rayon / 10;
     foreach (List<double> hole in holesToDrill)
     {
-        inertiaRemoved += rayonCm * rayonCm * getMassFromHoleDepth(hole[1]);
+        inertiaRemoved += getMassFromHoleDepth(hole[1]);
     }
     return inertiaRemoved;
 }
 
 bool computeDrilling(double amplitudeUsi, double angleUsi, double inertia, out List<List<double>> holesToDrill)
 {
-    Console.WriteLine("Amplitude:" + amplitudeUsi.ToString() + " angle:" + angleUsi.ToString());
+    //Console.WriteLine("Amplitude:" + amplitudeUsi.ToString() + " angle:" + angleUsi.ToString());
     List<List<double>> leftFreeHoles = new List<List<double>>(); //row { angle, diffAngle }
     List<List<double>> rightFreeHoles = new List<List<double>>(); //row { angle, diffAngle }
     holesToDrill = new List<List<double>>();
@@ -214,22 +216,19 @@ bool computeDrilling(double amplitudeUsi, double angleUsi, double inertia, out L
                 if (Math.Abs(diffAngle) > halfmaxAngleSpan)
                 {
                     List<double> hole = new List<double>() { angle, diffAngle };
-                    if (diffAngle <= 0)
+                    if (diffAngle <= 0 || diffAngle > 180)
                     {
                         hole[1] = -hole[1];
                         oppositLeftFreeHoles.Add(hole);
                     }
                     else
-                    {
                         oppositRightFreeHoles.Add(hole);
-                    }
                 }
             }
             if (oppositLeftFreeHoles.Count == 0 && oppositRightFreeHoles.Count == 0)
                 return false;
             oppositLeftFreeHoles.Sort((a, b) => b[1].CompareTo(a[1]));
             oppositRightFreeHoles.Sort((a, b) => b[1].CompareTo(a[1]));
-
 
             List<double> holesToDrillOpposit = new List<double>(); //row angle
             if (oppositLeftFreeHoles[0][1] > oppositRightFreeHoles[0][1]) // get the oppositer angle
@@ -253,7 +252,6 @@ bool computeDrilling(double amplitudeUsi, double angleUsi, double inertia, out L
                 {
                     case 0: // balanced
                         return true;
-                        break;
 
                     case 1: // add hole imbalance side
                         if (addHoleOnLeft)
@@ -303,6 +301,7 @@ bool computeDrilling(double amplitudeUsi, double angleUsi, double inertia, out L
 
                     case 3: // balancing not possible
                         return false;
+
                 }
             }
         }
@@ -341,7 +340,7 @@ bool updateHolesDepth(double amplitudeUsi, double angleUsi, List<double> holesTo
             holesToDrillUpdated.Add(new List<double> { holesToDrillRight[i], maxHoleDepth });
         }
     }
-
+    //Console.WriteLine($"usinageFullHolesX:{usinageFullHolesX}, usinageFullHolesY:{usinageFullHolesY}");
     usinageCibleX = usinageCibleX - usinageFullHolesX;
     usinageCibleY = usinageCibleY - usinageFullHolesY;
 
@@ -358,8 +357,15 @@ bool updateHolesDepth(double amplitudeUsi, double angleUsi, List<double> holesTo
     double droitX = rayonCm * Math.Cos(holesToDrillRight.Last() * degToRad);
     double droitY = rayonCm * Math.Sin(holesToDrillRight.Last() * degToRad);
 
-    b = (usinageCibleY - (gaucheY / gaucheX) * usinageCibleX) / ((-gaucheY / gaucheX) * droitX + droitY);
-    a = (usinageCibleX - (droitX * b)) / gaucheX;
+    MathNet.Numerics.LinearAlgebra.Matrix<double> Amat = Matrix<double>.Build.DenseOfArray(new double[,]
+    {
+    { gaucheX, droitX },
+    { gaucheY, droitY}
+    });
+    MathNet.Numerics.LinearAlgebra.Vector<double> bv = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.Dense(new double[] { usinageCibleX, usinageCibleY });
+    var x = Amat.Solve(bv);
+    a = x[0]; b = x[1];
+    //Console.WriteLine($"a:{a}, b:{b}");
 
     if (a >= 0 && a <= maxMassPerHole && b >= 0 && b <= maxMassPerHole)
     {
@@ -368,7 +374,7 @@ bool updateHolesDepth(double amplitudeUsi, double angleUsi, List<double> holesTo
         b = getHoleDepthFromMass(b);
         holesToDrillUpdated.Add(new List<double> { holesToDrillLeft.Last(), a });
         holesToDrillUpdated.Add(new List<double> { holesToDrillRight.Last(), b });
-        Console.WriteLine("Solution trouvée: prof a=" + a.ToString("F3") + " prof b=" + b.ToString("F3"));
+        //Console.WriteLine("Solution trouvée: prof a=" + a.ToString("F3") + " prof b=" + b.ToString("F3"));
         return true;// equillibrage ok
     }
     else
@@ -400,7 +406,7 @@ int updateHolesDepthWithInertia(double amplitudeUsi, double angleUsi, double ine
             usinageFullHolesX += maxMassPerHole * rayonCm * Math.Cos(holesToDrillLeft[i] * degToRad);
             usinageFullHolesY += maxMassPerHole * rayonCm * Math.Sin(holesToDrillLeft[i] * degToRad);
             holesToDrillUpdated.Add(new List<double> { holesToDrillLeft[i], maxHoleDepth });
-            inertiaRemoved += rayonCm * rayonCm * maxMassPerHole;
+            inertiaRemoved += maxMassPerHole;
         }
     }
 
@@ -411,7 +417,7 @@ int updateHolesDepthWithInertia(double amplitudeUsi, double angleUsi, double ine
             usinageFullHolesX += maxMassPerHole * rayonCm * Math.Cos(holesToDrillRight[i] * degToRad);
             usinageFullHolesY += maxMassPerHole * rayonCm * Math.Sin(holesToDrillRight[i] * degToRad);
             holesToDrillUpdated.Add(new List<double> { holesToDrillRight[i], maxHoleDepth });
-            inertiaRemoved += rayonCm * rayonCm * maxMassPerHole;
+            inertiaRemoved += maxMassPerHole;
         }
     }
 
@@ -422,7 +428,7 @@ int updateHolesDepthWithInertia(double amplitudeUsi, double angleUsi, double ine
             usinageFullHolesX += maxMassPerHole * rayonCm * Math.Cos(holesToDrillOpposit[i] * degToRad);
             usinageFullHolesY += maxMassPerHole * rayonCm * Math.Sin(holesToDrillOpposit[i] * degToRad);
             holesToDrillUpdated.Add(new List<double> { holesToDrillOpposit[i], maxHoleDepth });
-            inertiaRemoved += rayonCm * rayonCm * maxMassPerHole;
+            inertiaRemoved += maxMassPerHole;
         }
     }
 
@@ -435,14 +441,23 @@ int updateHolesDepthWithInertia(double amplitudeUsi, double angleUsi, double ine
     //inertia=rayon^2*(a+b+c) ==> inertia/rayon^2=a+b+c
 
     double a = 0, b = 0, c = 0;
-    double gaucheX = rayonCm * Math.Cos(holesToDrillLeft.Last() * degToRad);
-    double gaucheY = rayonCm * Math.Sin(holesToDrillLeft.Last() * degToRad);
+    double gaucheX = 0, gaucheY = 0, droitX = 0, droitY = 0, oppX = 0, oppY = 0;
+    if (holesToDrillLeft.Count > 0)
+    {
+        gaucheX = rayonCm * Math.Cos(holesToDrillLeft.Last() * degToRad);
+        gaucheY = rayonCm * Math.Sin(holesToDrillLeft.Last() * degToRad);
+    }
 
-    double droitX = rayonCm * Math.Cos(holesToDrillRight.Last() * degToRad);
-    double droitY = rayonCm * Math.Sin(holesToDrillRight.Last() * degToRad);
-
-    double oppX = rayonCm * Math.Cos(holesToDrillOpposit.Last() * degToRad);
-    double oppY = rayonCm * Math.Sin(holesToDrillOpposit.Last() * degToRad);
+    if (holesToDrillRight.Count > 0)
+    {
+        droitX = rayonCm * Math.Cos(holesToDrillRight.Last() * degToRad);
+        droitY = rayonCm * Math.Sin(holesToDrillRight.Last() * degToRad);
+    }
+    if (holesToDrillOpposit.Count > 0)
+    {
+        oppX = rayonCm * Math.Cos(holesToDrillOpposit.Last() * degToRad);
+        oppY = rayonCm * Math.Sin(holesToDrillOpposit.Last() * degToRad);
+    }
 
     double lastInertia = Convert.ToDouble(inertia) - inertiaRemoved;
 
@@ -452,11 +467,14 @@ int updateHolesDepthWithInertia(double amplitudeUsi, double angleUsi, double ine
     { gaucheY, droitY, oppY },
     { 1, 1, 1 }
     });
-    MathNet.Numerics.LinearAlgebra.Vector<double> bv = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.Dense(new double[] { usinageCibleX, usinageCibleY, lastInertia / (rayonCm * rayonCm) });
+    MathNet.Numerics.LinearAlgebra.Vector<double> bv = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.Dense(new double[] { usinageCibleX, usinageCibleY, lastInertia });
     var x = Amat.Solve(bv);
     a = x[0]; b = x[1]; c = x[2];
 
-    Console.WriteLine("masse a=" + a.ToString("F3") + " b=" + b.ToString("F3") + " c=" + c.ToString("F3"));
+    //Console.WriteLine("masse a=" + a.ToString("F3") + " b=" + b.ToString("F3") + " c=" + c.ToString("F3"));
+    if (a < 0|| b < 0|| c < 0)
+        return 3;
+   
 
     if (a >= 0 && a <= maxMassPerHole && b >= 0 && b <= maxMassPerHole && c >= 0 && c <= maxMassPerHole)
     {
@@ -467,7 +485,7 @@ int updateHolesDepthWithInertia(double amplitudeUsi, double angleUsi, double ine
         holesToDrillUpdated.Add(new List<double> { holesToDrillLeft.Last(), a });
         holesToDrillUpdated.Add(new List<double> { holesToDrillRight.Last(), b });
         holesToDrillUpdated.Add(new List<double> { holesToDrillOpposit.Last(), c });
-        Console.WriteLine("Solution trouvée, prof a=" + a.ToString("F3") + " prof b=" + b.ToString("F3") + " prof c=" + c.ToString("F3"));
+        //Console.WriteLine("Solution trouvée, prof a=" + a.ToString("F3") + " prof b=" + b.ToString("F3") + " prof c=" + c.ToString("F3"));
         return 0;// equillibrage ok
     }
     else if (c > a && c > b) //need more opposit
@@ -545,17 +563,19 @@ void drawUsinage(double angleBalourd, List<List<double>> consigneUsinage, List<d
 
 #endregion
 Random rand = new Random();
-for (int i = 0; i < 200; i++)
+int solFound = 0, error = 0;
+for (int i = 0; i < 100000; i++)
 {
     freeHoles.Clear();
     foreach (double hole in patternHoles)
     {
-        if (rand.NextDouble() > 0.2)
+        if (rand.NextDouble() > 0.1)
             freeHoles.Add(hole);
     }
-    sw.Restart();
-    balourd = 100.0 * rand.NextDouble();
+    sw.Start();
+    balourd = 60 * rand.NextDouble();
     angleBalourd = 360 * rand.NextDouble();
+
 
     double amplitudeUsinageBrut = 0, angleUsinageBrut = 0;
 
@@ -568,11 +588,20 @@ for (int i = 0; i < 200; i++)
     DrillConsigne.Clear();
 
     if (computeDrilling(amplitudeUsinageReel, angleUsinageReel, 0, out DrillConsigne))
-        //drawUsinage(angleBalourd, DrillConsigne, freeHoles);
-        ;
+    {
+        //Console.WriteLine($"Solution trouvée, nb de perçage: {DrillConsigne.Count}");
+        solFound++;
+    }
+
     else
-        Console.WriteLine("pas possible");
+    {
+        //Console.WriteLine("pas possible");
+        error++;
+    }
     sw.Stop();
-    long microseconds = sw.ElapsedTicks / TicksPerMicrosecond;
-    Console.WriteLine("duree de traitement:" + microseconds.ToString() + "microsec");
+    
+    // Console.WriteLine("duree de traitement:" + microseconds.ToString() + "microsec");
 }
+long microseconds = sw.ElapsedTicks / TicksPerMicrosecond;
+Console.WriteLine($"Found: {solFound} Error:{error} Pourcentage d'erreur: {100.0*error/solFound}");
+Console.WriteLine( $"Durée de traitement: {microseconds} ms" );
